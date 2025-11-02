@@ -99,7 +99,7 @@ export default function App() {
     let nextMatchOrdinal = null;
     if (matches.length) {
       for (let m of matches) {
-        if (m > currentIndex) { nextMatchOrdinal = m; break; }
+        if (m >= currentIndex) { nextMatchOrdinal = m; break; }
       }
     }
 
