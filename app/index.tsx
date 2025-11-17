@@ -40,6 +40,8 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [studentID, setStudentID] = useState('');
+  const [indices, setIndices] = useState({});
+
 
   const fetchData = useCallback(async () => {
     try {
@@ -47,6 +49,13 @@ export default function App() {
       const text = await res.text();
       const rows = parseCSV(text);
       setData(rows);
+
+      const initial = {};
+      rows.slice(1).forEach((row, i) => {
+        const parsed = parseInt(row[1]);
+        initial[i] = Number.isFinite(parsed) && !isNaN(parsed) ? parsed : 0;
+      });
+      setIndices(initial);
     } catch (e) {
       Alert.alert('Fehler', 'Konnte Daten nicht laden.');
     } finally {
@@ -62,6 +71,16 @@ export default function App() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchData();
+  };
+
+  // change index for a row (rowIndex corresponds to data.slice(1) index)
+  const changeIndex = (rowIndex, delta, slotsLength) => {
+    setIndices(prev => {
+      const cur = prev[rowIndex] || 0;
+      // clamp between 0 and slotsLength (0 meaning nothing done yet)
+      const next = Math.max(0, Math.min(slotsLength, cur + delta));
+      return { ...prev, [rowIndex]: next };
+    });
   };
 
   /* Helper: determine highlighting for a given slot */
@@ -86,8 +105,11 @@ export default function App() {
     const subject = row[0] || '';
     // CurrentIndex stored as 1-based slot ordinal. If invalid -> 0 (meaning nothing completed yet).
     const parsed = parseInt(row[1]);
-    const currentIndex = Number.isFinite(parsed) && !isNaN(parsed) ? parsed : 0;
+    const csvCurrentIndex = Number.isFinite(parsed) && !isNaN(parsed) ? parsed : 0;
     const slots = row.slice(2);
+
+    // Use local override if present; fallback to CSV value
+    const currentIndex = indices[rowIndex] !== undefined ? indices[rowIndex] : csvCurrentIndex;
 
     // Find all matching slot ordinals for the entered studentID
     const matches = [];
@@ -106,6 +128,30 @@ export default function App() {
     return (
       <View key={rowIndex} style={{ marginBottom: 12 }}>
         <Text style={{ fontWeight: '700', marginBottom: 4 }}>{subject}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={{ fontWeight: '700', marginBottom: 4 }}>{subject}</Text>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => changeIndex(rowIndex, -1, slots.length)}
+              style={{ paddingHorizontal: 8, paddingVertical: 6, borderWidth: 1, borderRadius: 6, marginRight: 6 }}
+            >
+              <Text>{'‹'}</Text>
+            </TouchableOpacity>
+
+            <View style={{ paddingHorizontal: 8, paddingVertical: 6, borderWidth: 1, borderRadius: 6 }}>
+              <Text style={{ fontWeight: '700' }}>{currentIndex}</Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => changeIndex(rowIndex, +1, slots.length)}
+              style={{ paddingHorizontal: 8, paddingVertical: 6, borderWidth: 1, borderRadius: 6, marginLeft: 6 }}
+            >
+              <Text>{'›'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <ScrollView horizontal contentContainerStyle={{ alignItems: 'flex-start' }}>
           {/* render header markers above slots: small CURRENT label if this slot is the current position */}
           <View style={{ flexDirection: 'column' }}>
